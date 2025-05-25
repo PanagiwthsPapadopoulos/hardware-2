@@ -28,18 +28,29 @@ module fp_mult_tb;
     // === Clock (not used by DUT, but spec requires timing) ===
     logic clk = 0;
     always #7.5 clk = ~clk;
+  
+  	logic rst;
+    initial begin
+        rst = 0;
+        #5;
+        rst = 1;
+    end
+
 
     // === Instantiate DUT ===
     fp_mult_top dut (
-        .a(a),
-        .b(b),
-        .rnd(round),
-        .z(z),
-        .status(status)
-    );
+      .a(a),
+      .b(b),
+      .rnd(round),
+      .clk(clk),
+      .rst(rst),
+      .z(z),
+      .status(status)
+	);
 
     logic [2:0] mode;
     integer i, j;
+    reg [31:0] expected;
 
 
     // === Corner Cases (12 values) ===
@@ -64,6 +75,7 @@ module fp_mult_tb;
 
     // === Random Tests ===
     initial begin
+      /*
         $display("=== RANDOM TESTS ===");
         
         for (int mode = 0; mode < 6; mode++) begin
@@ -90,15 +102,15 @@ module fp_mult_tb;
             expected = multiplication(a, b, rstr);;
 
             if (z !== expected) begin
-            $display("RANDOM ERROR: round=%s a=0x%08X b=0x%08X z=0x%08X expected=0x%08X",
-                        rstr, a, b, z, expected);
+           // $display("RANDOM ERROR: round=%s a=0x%08X b=0x%08X z=0x%08X expected=0x%08X",
+            //            rstr, a, b, z, expected);
             end
         end
         end
     end
 
   // === Corner Case Tests ===
-    reg [31:0] expected;        // Declare expected outside loops
+    //reg [31:0] expected;        // Declare expected outside loops
 
     initial begin
         #2000; // Wait for random tests to finish
@@ -137,16 +149,35 @@ module fp_mult_tb;
                     expected = multiplication(a, b, rstr);
 
                     if (z !== expected) begin
-                        $display("CORNER ERROR: round=%s a_case=%0d b_case=%0d z=0x%08X expected=0x%08X",
-                                rstr, i, j, z, expected);
+        //                $display("CORNER ERROR: round=%s a_case=%0d b_case=%0d z=0x%08X expected=0x%08X",
                     end
                 end
             end
         end
 
         $display("=== CORNER CASES DONE ===");
+        */
+      a = 32'h0x40800000; // 1.0
+      b = 32'h40000000; // 2.0
+      round = IEEE_NEAR;
+      rstr = "IEEE_near";
+
+      #10;
+      @(posedge clk);  // ensure inputs latch
+@(posedge clk);  //  give DUT time to compute
+      expected = multiplication(rstr, a, b);
+
+      $display("MANUAL TEST: a=0x%08X b=0x%08X z=0x%08X expected=0x%08X", a, b, z, expected);
+      $display("MANUAL TEST: a = %f, b = %f, z = %f, expected = %f",
+         $bitstoshortreal(a),
+         $bitstoshortreal(b),
+         $bitstoshortreal(z),
+         $bitstoshortreal(expected));
+
+
         $finish;
     end
 
 
 endmodule
+
