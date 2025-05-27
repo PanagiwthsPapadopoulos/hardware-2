@@ -109,15 +109,15 @@ endfunction
             tiny_f     = unf;
             inexact_f  = inexact;
           
-            //    IEEE_NEAR   x
-            //    IEEE_ZERO   x
-            //    IEEE_PINF   x
-            //    IEEE_NINF   x
-            //    NEAR_UP     x
-            //    AWAY_ZERO   x
+            //      IEEE_NEAR   x
+            //      IEEE_ZERO   x
+            //      IEEE_PINF   x
+            //      IEEE_NINF   x
+            //      NEAR_UP     x
+            //      AWAY_ZERO   x
 
           	// Check for overflow
-            if (ovf) begin
+            if (ovf) begin            	
               	case (round)
                     IEEE_NEAR: begin
                         z = {sign_bit, z_num(INF)};
@@ -156,7 +156,6 @@ endfunction
                     end
                 endcase
             end
-            // Check for underflow
             else if (unf) begin
                 case (round)
                     IEEE_NEAR: begin
@@ -204,8 +203,7 @@ endfunction
                 z = z_calc;
             end
         end
-    
     end
-
+    
 endmodule
 

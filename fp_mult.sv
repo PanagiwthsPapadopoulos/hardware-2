@@ -6,8 +6,8 @@ module fp_mult (
     input logic [2:0] rnd,                  // Rounding mode
     output logic [31:0] z,                  // Final result (with exceptions handled)
     output logic [7:0] status,              // Status flags from exception_mult
-    input logic clk,                        // Clock input (unused internally but required by wrapper)
-    input logic rst                         // Reset input (unused internally but required by wrapper)
+    input logic clk,                        // Clock input (used for pipelined stage)
+    input logic rst                         // Reset input (active-low, initializes pipeline regs to zero)
 );
 
     // (1) SIGN CALCULATION
@@ -22,8 +22,6 @@ module fp_mult (
     logic [9:0] exponent_sum;
     assign exponent_sum = exp_a + exp_b;    // raw exponent sum
 
-  	
-  
     // (3) SUBTRACT BIAS
     logic signed [9:0] exponent_biased;
     assign exponent_biased = exponent_sum - 127;
@@ -40,7 +38,6 @@ module fp_mult (
 
     assign mantissa_mult = mantissa_a * mantissa_b;
 
-    
     // (5) NORMALIZATION MODULE
     logic [22:0] norm_mantissa;
     logic signed [9:0] norm_exponent;
@@ -55,49 +52,64 @@ module fp_mult (
         .sticky(sticky)
     );
 
-    // (6) ROUNDING MODULE
+    // (6) PIPELINE STAGE
+    // Pipeline stage after normalization to improve circuit performance
+    logic [22:0] norm_mantissa_r;
+    logic signed [9:0] norm_exponent_r;
+    logic guard_r, sticky_r;
+
+    always_ff @(posedge clk or negedge rst) begin
+        if (!rst) begin
+            norm_mantissa_r <= 23'd0;
+            norm_exponent_r <= 10'd0;
+            guard_r <= 1'b0;
+            sticky_r <= 1'b0;
+        end else begin
+            norm_mantissa_r <= norm_mantissa;
+            norm_exponent_r <= norm_exponent;
+            guard_r <= guard;
+            sticky_r <= sticky;
+        end
+    end
+
+    // (7) ROUNDING MODULE
     logic [24:0] rounded_mantissa;
     logic inexact;
 
     round_mult round_unit (
-      .mant_in({1'b1, norm_mantissa}),    // include leading one
-        .guard(guard),
-        .sticky(sticky),
+        .mant_in({1'b1, norm_mantissa_r}),    // include leading one
+        .guard(guard_r),
+        .sticky(sticky_r),
         .sign(sign_bit),
         .round(rnd),
         .mant_out(rounded_mantissa),
         .inexact(inexact)
     );
 
-    // Increase exponent value by 1 to form post-normalized exponent
-    // Post-rounding Exponent (10 bits)
+    // Post-rounding normalization (adjust exponent if MSB is 1)
     logic signed [9:0] rounded_exp;
-    assign rounded_exp = (rounded_mantissa[24]) ? (norm_exponent + 1) : norm_exponent;
-  
-  	// Post-rounding Mantissa (24 bits) - includes the leading one
-  	// mantissa_out --> rounded_mantissa without leading 1, ready for z_calc 
+    assign rounded_exp = (rounded_mantissa[24]) ?
+                          (norm_exponent_r + 1) :
+                          norm_exponent_r;
+
+    // Post-rounding Mantissa (24 bits) - includes the leading one
     logic [22:0] mantissa_out;
-  	assign mantissa_out = rounded_mantissa[22:0];  // drop the leading one
-  
-  	// Get the 8 lower bits for the final exponent
-  	logic signed [7:0] final_exp;
-	assign final_exp = rounded_exp[7:0];
+    assign mantissa_out = rounded_mantissa[22:0];  // drop the leading one
+
+    // Final exponent (lower 8 bits)
+    logic signed [7:0] final_exp;
+    assign final_exp = rounded_exp[7:0];
 
     // Construct z_calc: sign | exponent | mantissa
     logic [31:0] z_calc;
     assign z_calc = {sign_bit, final_exp, mantissa_out};
-    //				{  1 bit   | 8 bits  |   23 bits   } 
 
-
-  
     // Overflow and Underflow Detection (based on post-rounding exponent)
     logic ovf, unf;
     assign ovf = (rounded_exp > 254);   // Exponent overflow
     assign unf = (rounded_exp < 1);     // Exponent underflow
 
-
-  
-    // (7) EXCEPTION HANDLING MODULE
+    // (8) EXCEPTION HANDLING MODULE
     logic zero_f, inf_f, nan_f, tiny_f, huge_f, inexact_f;
 
     exception_mult exception_unit (
@@ -129,4 +141,3 @@ module fp_mult (
     };
 
 endmodule
-
