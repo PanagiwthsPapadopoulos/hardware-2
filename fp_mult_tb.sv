@@ -11,6 +11,7 @@ module fp_mult_tb;
 
     logic clk = 0;
     always #5 clk = ~clk; // 10ns clock
+    bit enable_assertions = 0;
 
     logic rst;
     initial begin
@@ -28,6 +29,32 @@ module fp_mult_tb;
         .z(z),
         .status(status)
     );
+  
+    // Bind the test_status_bits assertion module
+    bind fp_mult_top test_status_bits checker_bits (
+      .zero_f(fp_mult_tb.dut.status[0]),
+      .inf_f(fp_mult_tb.dut.status[1]),
+      .nan_f(fp_mult_tb.dut.status[2]),
+      .tiny_f(fp_mult_tb.dut.status[3]),
+      .huge_f(fp_mult_tb.dut.status[4]),
+      .enable_assertions(fp_mult_tb.enable_assertions),
+      .verbose_pass(fp_mult_tb.verbose_pass)
+  	);
+  
+  	// Bind the test_status_z_combinations module
+  	bind fp_mult_top test_status_z_combinations checker_z (
+      .clk(fp_mult_tb.clk),
+      .a(fp_mult_tb.a),
+      .b(fp_mult_tb.b),
+      .z(fp_mult_tb.z),
+      .zero_f(fp_mult_tb.dut.status[0]),
+      .inf_f(fp_mult_tb.dut.status[1]),
+      .nan_f(fp_mult_tb.dut.status[2]),
+      .tiny_f(fp_mult_tb.dut.status[3]),
+      .huge_f(fp_mult_tb.dut.status[4]),
+      .enable_assertions(fp_mult_tb.enable_assertions),
+      .verbose_pass(fp_mult_tb.verbose_pass)
+	);
 
     logic [2:0] mode;
     integer i, j;
@@ -50,10 +77,13 @@ module fp_mult_tb;
         corner_cases[10] = 32'h00000000;
         corner_cases[11] = 32'h80000000;
     end
-
-    bit run_random = 1;
-    bit run_corner = 1;
-    bit verbose = 1;
+  
+    // Simulation Variables
+    bit run_random = 1;          // Execute random tests
+    bit run_corner = 1;          // Execute corner tests
+    bit verbose = 0;             // Print matches for the tests - mismatches are always displayed
+    bit verbose_pass = 0;        // Print assertion passes for the tests - erros are always displayed
+  
 
     initial begin
       $dumpfile("dump.vcd");                         // VCD output file
@@ -61,14 +91,21 @@ module fp_mult_tb;
     
         if (run_random) begin
             $display("=== RANDOM TESTS ===");
-            // === Pipeline priming ===
-            // Wait 3 cycles before applying the first test
+          			// === Pipeline priming ===
+                // Wait 3 cycles before applying the first test
             @(posedge clk); @(posedge clk); @(posedge clk);
             for (int mode = 0; mode < 6; mode++) begin
                 round = round_mode_t'(mode);
                 for (int i = 0; i < 500; i++) begin
+                  
                     a = $urandom();
                     b = $urandom();
+                  
+                  // Enable assertions only after the first set of numbers has reached stage 3 of the pipeline
+                  if(!enable_assertions) begin
+                    @(posedge clk);@(posedge clk);@(posedge clk);
+                    enable_assertions = 1;
+                  end
 
                     case (round)
                         3'b000: rstr = "IEEE_near";

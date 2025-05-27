@@ -95,12 +95,12 @@ endfunction
         end
         else if (class_a == INF || class_b == INF) begin
             // Inf * Inf → Inf
-            z     = {sign_bit, z_num(INF)};
+            z = {sign_bit, z_num(INF)};
             inf_f = 1;
         end
         else if (class_a == ZERO || class_b == ZERO) begin
             // 0 * Any → 0
-            z      = {sign_bit, z_num(ZERO)};
+            z = {sign_bit, z_num(ZERO)};
             zero_f = 1;
         end
         else begin
@@ -164,16 +164,15 @@ endfunction
                     end
 
                     IEEE_ZERO: begin
-                      z = {sign_bit, z_num(ZERO)};
+                        z = {sign_bit, z_num(ZERO)};
                     end
 
                     IEEE_PINF: begin
-                        if (sign_bit)
-                          z = {1'b1, z_num(ZERO)};
-                        else begin
-                          z = {1'b0, z_num(MIN_NORM)};
+                        if (sign_bit) begin
+                            z = {1'b1, z_num(ZERO)};
                             zero_f = 1;
-                        end
+                        end else 
+                            z = {1'b0, z_num(MIN_NORM)};
                     end
 
                     IEEE_NINF: begin
@@ -191,7 +190,7 @@ endfunction
                     end
 
                     AWAY_ZERO: begin
-                      z = {sign_bit, z_num(MIN_NORM)};
+                        z = {sign_bit, z_num(MIN_NORM)};
                         zero_f = 1;
                     end
                 endcase
