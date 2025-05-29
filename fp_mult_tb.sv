@@ -101,11 +101,11 @@ module fp_mult_tb;
                     a = $urandom();
                     b = $urandom();
                   
-                  // Enable assertions only after the first set of numbers has reached stage 3 of the pipeline
-                  if(!enable_assertions) begin
-                    @(posedge clk);@(posedge clk);@(posedge clk);
-                    enable_assertions = 1;
-                  end
+                    // Enable assertions only after the first set of numbers has reached stage 3 of the pipeline
+                    if(!enable_assertions) begin
+                        @(posedge clk);@(posedge clk);@(posedge clk);
+                        enable_assertions = 1;
+                    end
 
                     case (round)
                         3'b000: rstr = "IEEE_near";
